@@ -5,17 +5,36 @@ import { Modal } from "antd";
 import { tokenList } from "../constant";
 import SwapIn from "./SwapIn";
 import SwapOut from "./SwapOut";
+import { useAccount } from "wagmi";
+import axios from "axios";
 
 const Exchange = () => {
+  const { address, isConnected } = useAccount();
   const [tokenOneAmount, setTokenOneAmount] = useState("");
   const [tokenTwoAmount, setTokenTwoAmount] = useState("");
   const [tokenOne, setTokenOne] = useState(tokenList[0]);
   const [tokenTwo, setTokenTwo] = useState(tokenList[1]);
   const [isOpen, setIsOpen] = useState(false);
   const [changeToken, setChangeToken] = useState(1);
+  const [prices, setPrices] = useState("");
+
+  //const Moralis = require("moralis").default;
 
   const changeAmount = (e) => {
     setTokenOneAmount(e.target.value);
+    if (e.target.value && prices) {
+      setTokenTwoAmount((e.target.value * prices.ratio).toFixed(2));
+    } else {
+      setTokenTwoAmount("");
+    }
+  };
+
+  const fetchPrices = async (one, two) => {
+    const res = await axios.get(`http://localhost:3001/tokenPrice`, {
+      params: { addressOne: one, addressTwo: two },
+    });
+
+    setPrices(res.data);
   };
 
   const switchToken = () => {
@@ -24,13 +43,16 @@ const Exchange = () => {
     const two = tokenTwo;
     setTokenOne(two);
     setTokenTwo(one);
+    fetchPrices(two.address, one.address);
   };
 
   const modifyToken = (i) => {
     if (changeToken === 1) {
       setTokenOne(tokenList[i]);
+      fetchPrices(tokenList[i].address, tokenTwo.address);
     } else {
       setTokenTwo(tokenList[i]);
+      fetchPrices(tokenOne.address, tokenList[i].address);
     }
     setIsOpen(false);
   };
@@ -38,6 +60,36 @@ const Exchange = () => {
   const openModal = (asset) => {
     setChangeToken(asset);
     setIsOpen(true);
+  };
+
+  const fetchSwap = async () => {
+    const allowance = await axios.get(
+      `https://api.1inch.io/v5.0/1/approve/allowance?tokenAddress=${tokenOne.address}&walletAddress=${address}`
+    );
+
+    if (allowance.data.allowance === "0") {
+      const approve = await axios.get(
+        `https://api.1inch.io/v5.0/1/approve/transaction?tokenAddress=${tokenOne.address}`
+      );
+
+      setTxDetails(approve.data);
+      console.log("not approved");
+      return;
+    }
+
+    const tx = await axios.get(
+      `https://api.1inch.io/v5.0/1/swap?fromTokenAddress=${
+        tokenOne.address
+      }&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(
+        tokenOne.decimals + tokenOneAmount.length,
+        "0"
+      )}&fromAddress=${address}&slippage=${slippage}`
+    );
+
+    let decimals = Number(`1E${tokenTwo.decimals}`);
+    setTokenTwoAmount((Number(tx.data.toTokenAmount) / decimals).toFixed(2));
+
+    setTxDetails(tx.data.tx);
   };
 
   return (
@@ -91,7 +143,12 @@ const Exchange = () => {
             disabled={true}
           />
         </div>
-        <button className={`${styles.actionButton} bg-site-pink`}>Swap</button>
+        <button
+          className={`${styles.actionButton} bg-site-pink`}
+          onClick={fetchSwap}
+        >
+          Swap
+        </button>
       </div>
     </>
   );

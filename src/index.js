@@ -11,7 +11,7 @@ import { alchemyProvider } from "wagmi/providers/alchemy";
 
 const { chains, provider, webSocketProvider } = configureChains(
   [mainnet, goerli],
-  [alchemyProvider({ apiKey: process.env.ALCHEMY_API })]
+  [publicProvider()]
 );
 
 const client = createClient({
