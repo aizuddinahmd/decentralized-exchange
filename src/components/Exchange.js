@@ -5,7 +5,7 @@ import { Modal } from "antd";
 import { tokenList } from "../constant";
 import SwapIn from "./SwapIn";
 import SwapOut from "./SwapOut";
-import { useAccount } from "wagmi";
+import { useAccount, useSendTransaction } from "wagmi";
 import axios from "axios";
 
 const Exchange = () => {
@@ -17,8 +17,20 @@ const Exchange = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [changeToken, setChangeToken] = useState(1);
   const [prices, setPrices] = useState("");
+  const [txDetails, setTxDetails] = useState({
+    to: "",
+    from: "",
+    value: "",
+  });
 
-  //const Moralis = require("moralis").default;
+  const { data, sendTransaction } = useSendTransaction({
+    request: {
+      from: address,
+      to: String(txDetails.to),
+      data: String(txDetails.data),
+      value: String(txDetails.value),
+    },
+  });
 
   const changeAmount = (e) => {
     setTokenOneAmount(e.target.value);
@@ -83,7 +95,7 @@ const Exchange = () => {
       }&toTokenAddress=${tokenTwo.address}&amount=${tokenOneAmount.padEnd(
         tokenOne.decimals + tokenOneAmount.length,
         "0"
-      )}&fromAddress=${address}&slippage=${slippage}`
+      )}&fromAddress=${address}`
     );
 
     let decimals = Number(`1E${tokenTwo.decimals}`);
